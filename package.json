@@ -6,16 +6,16 @@
   "workspaces": [
     "frontend"
   ],
-  "scripts": {
-    "dev": "concurrently \"cd frontend && bun run dev\" \"bun --watch backend.ts\"",
-    "dev:backend": "bun --watch backend.ts",
-    "dev:frontend": "cd frontend && bun run dev",
-    "build:frontend": "cd frontend && bun run build",
-    "build:backend": "bun build ./backend.ts --outdir ./dist",
-    "build": "bun run build:frontend && bun run build:backend",
-    "start": "bun dist/backend.js",
-    "preview:frontend": "cd frontend && bun run preview"
-  },
+"scripts": {
+  "dev": "concurrently \"cd frontend && bun run dev\" \"bun --watch backend.ts\"",
+  "dev:backend": "bun --watch backend.ts",
+  "dev:frontend": "cd frontend && bun run dev",
+  "build:frontend": "cd frontend && bun run build",
+  "build:backend": "echo 'Skip backend build'", 
+  "build": "bun run build:frontend",
+  "start": "bun backend.ts",
+  "preview:frontend": "cd frontend && bun run preview"
+},
   "devDependencies": {
     "@types/bun": "latest",
     "@types/react": "^19.2.14",

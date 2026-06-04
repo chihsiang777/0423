@@ -35,12 +35,6 @@ export function toOrderResponse(order: Order): OrderResponse {
 
 // ─── Request Schemas（按 route 分組）────────────────────────────────────
 
-/** POST /api/auth/login */
-export const loginBodySchema = z.object({
-  email: z.string().min(3),
-  password: z.string().min(1),
-});
-
 /** POST /api/menu */
 export const createMenuItemBodySchema = z.object({
   name: z.string().min(1),
@@ -69,28 +63,20 @@ export const deleteMenuItemParamsSchema = z.object({
 });
 
 /** GET /api/orders/current */
-export const getOrderCurrentQuerySchema = z.object({
-  userId: z.string().min(1),
-});
+export const getOrderCurrentQuerySchema = z.object({});
 
 /** GET /api/orders/history */
-export const getOrderHistoryQuerySchema = z.object({
-  userId: z.string().min(1),
-});
+export const getOrderHistoryQuerySchema = z.object({});
 
 /** POST /api/orders */
-export const createOrderBodySchema = z.object({
-  userId: z.string().min(1),
-});
+export const createOrderBodySchema = z.object({});
 
 /** GET /api/orders/:id */
 export const getOrderByIdParamsSchema = z.object({
   id: z.string().regex(/^[0-9]+$/),
 });
 
-export const getOrderByIdQuerySchema = z.object({
-  userId: z.string().min(1),
-});
+export const getOrderByIdQuerySchema = z.object({});
 
 /** PATCH /api/orders/:id */
 export const updateOrderParamsSchema = z.object({
@@ -98,7 +84,6 @@ export const updateOrderParamsSchema = z.object({
 });
 
 export const updateOrderBodySchema = z.object({
-  userId: z.string().min(1),
   itemId: z.number().int().min(1),
   qty: z.number().min(0),
 });
@@ -108,9 +93,7 @@ export const submitOrderParamsSchema = z.object({
   id: z.string().regex(/^[0-9]+$/),
 });
 
-export const submitOrderBodySchema = z.object({
-  userId: z.string().min(1),
-});
+export const submitOrderBodySchema = z.object({});
 
 // ─── Response Schemas（API envelope 層）─────────────────────────────────
 

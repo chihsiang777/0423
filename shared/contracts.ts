@@ -15,7 +15,7 @@ export const menuItemSchema = z.object({
 
 // ─── User schemas（業務層）──────────────────────────────────────────────────
 // userSchema：完整使用者資料（業務/資料層使用，不對外暴露）
-// sessionUserSchema：API 回傳的最小安全投影（不含 password 等敏感欄位）
+// sessionUserSchema：API 回傳的最小安全投影（不含 Better Auth 內部欄位）
 // 注意：V9 使用 Better Auth，userSchema 由 Better Auth DB 負責儲存。
 //       sessionUserSchema 為 auth session 對外的唯一輸出格式。
 
@@ -23,7 +23,6 @@ export const userSchema = z.object({
   id: z.string().min(1),
   email: z.string().min(3),
   name: z.string().min(1),
-  password: z.string().min(1),
   // 預留個資欄位（V9+ 實作使用者 profile 時使用）
   birthday: z.string().min(1).optional(),
   address: z.string().min(1).optional(),

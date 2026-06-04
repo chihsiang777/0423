@@ -44,7 +44,7 @@ export const auth = betterAuth({
     schema,
   }),
   emailAndPassword: {
-    enabled: true,
+    enabled: false,
   },
   ...(isGoogleProviderConfigured
     ? {

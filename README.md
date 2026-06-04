@@ -32,6 +32,10 @@ API_ALLOWED_ORIGIN=
 DATABASE_URL=
 DATABASE_URL_MIGRATION=
 STORE_DRIVER=postgres
+BETTER_AUTH_URL=http://localhost:3000
+BETTER_AUTH_SECRET=請換成 32 bytes 以上的隨機字串
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 ```
 
 ## PostgreSQL（Drizzle + Neon）
@@ -58,6 +62,33 @@ bun run db:check
 ```bash
 bun run db:generate
 bun run db:migrate
+```
+
+## Better Auth + Google OAuth
+
+本版本使用 Better Auth 的 server session 作為登入狀態來源。前端不再保存
+`breakfast.user`，訂單 API 也不再接受前端傳入的 `userId`；後端會從 session
+取得 `session.user.id`。
+
+Google Cloud Console 需要設定 OAuth redirect URI：
+
+```text
+http://localhost:3000/api/auth/callback/google
+```
+
+開發時常用設定：
+
+```env
+BETTER_AUTH_URL=http://localhost:3000
+API_ALLOWED_ORIGIN=http://localhost:5173
+GOOGLE_CLIENT_ID=你的 Google OAuth Client ID
+GOOGLE_CLIENT_SECRET=你的 Google OAuth Client Secret
+```
+
+產生 auth schema 時可執行：
+
+```bash
+bun run auth:generate
 ```
 
 若暫時仍要使用 JSON store，可把 `STORE_DRIVER` 改成 `json`。
@@ -142,10 +173,8 @@ bun --watch backend.ts
 
 ```bash
 curl -s http://localhost:3000/health
-curl -s -X POST http://localhost:3000/api/auth/login \
-	-H "Content-Type: application/json" \
-	-d '{"email":"demo@example.com","password":"1234"}'
-curl -s "http://localhost:3000/api/orders/current?userId=0001"
+curl -i http://localhost:3000/api/auth/get-session
+curl -i http://localhost:3000/api/orders/current
 ```
 
 ## 建置

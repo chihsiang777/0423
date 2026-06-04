@@ -222,3 +222,22 @@ cp frontend/.env.example frontend/.env
 ```bash
 API_ALLOWED_ORIGIN=https://your-frontend.example.com bun run start
 ```
+
+## Render database migration
+
+If Render logs show:
+
+```text
+relation "bf_v9.menu_items" does not exist
+```
+
+the PostgreSQL database is reachable, but the `bf_v9` schema/tables have not
+been migrated yet. Use this Start Command on Render:
+
+```bash
+bun run deploy:start
+```
+
+`deploy:start` runs `bun run db:migrate` before `bun run start`, so tables such
+as `bf_v9.menu_items`, `bf_v9.orders`, and Better Auth's `user/account/session`
+tables are created before the backend reads them.

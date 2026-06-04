@@ -1,5 +1,5 @@
-import { Pool } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-serverless";
+import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "./schema.ts";
 import * as authSchema from "./auth-schema.ts";
 
@@ -11,7 +11,12 @@ if (!databaseUrl) {
   );
 }
 
-const pool = new Pool({ connectionString: databaseUrl });
+const pool = new Pool({
+  connectionString: databaseUrl,
+  ssl: databaseUrl.includes("sslmode=disable")
+    ? false
+    : { rejectUnauthorized: false },
+});
 
 export const db = drizzle({
   client: pool,

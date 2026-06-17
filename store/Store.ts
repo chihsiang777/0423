@@ -10,7 +10,8 @@ export type SubmitOrderErrorCode =
   | "ORDER_NOT_FOUND"
   | "ORDER_NOT_OWNED"
   | "ORDER_NOT_EDITABLE"
-  | "EMPTY_ORDER";
+  | "EMPTY_ORDER"
+  | "OUTDATED_MENU_ITEM";
 
 export type UpdateOrderStatusErrorCode =
   | "ORDER_NOT_FOUND"
@@ -26,6 +27,7 @@ export interface Store {
     category: string;
     description: string;
     image_url: string;
+    createdBy?: string;
   }): Promise<MenuItem>;
   updateMenuItem(
     menuId: number,
@@ -35,9 +37,12 @@ export interface Store {
       category?: string;
       description?: string;
       image_url?: string;
+      changeReason?: string;
+      createdBy?: string;
     },
   ): Promise<MenuItem | null>;
   deleteMenuItem(menuId: number): Promise<MenuItem | null>;
+  getMenuVersionHistory(logicalId: string): Promise<ReadonlyArray<MenuItem>>;
 
   getOrders(): ReadonlyArray<Order>;
   getOrdersByUserId(userId: string): ReadonlyArray<Order>;

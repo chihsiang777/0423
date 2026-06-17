@@ -14,6 +14,7 @@ import {
   getOrderByIdParamsSchema,
   healthResponseSchema,
   listRoleRequestsQuerySchema,
+  menuItemHistoryResponseSchema,
   menuItemResponseSchema,
   menuListResponseSchema,
   nullableOrderResponseEnvelopeSchema,
@@ -244,7 +245,10 @@ app.post(
   async ({ body, request, set }) => {
     const user = await requireUser(request);
     requireAnyRole(user, menuManagerRoles);
-    const newMenuItem = await store.createMenuItem(body);
+    const newMenuItem = await store.createMenuItem({
+      ...body,
+      createdBy: user.id,
+    });
     set.status = 201;
     return { data: newMenuItem };
   },
@@ -269,7 +273,10 @@ app.patch(
     const user = await requireUser(request);
     requireAnyRole(user, menuManagerRoles);
     const menuId = parseInt(params.id);
-    const menuItem = await store.updateMenuItem(menuId, body);
+    const menuItem = await store.updateMenuItem(menuId, {
+      ...body,
+      createdBy: user.id,
+    });
 
     if (!menuItem) {
       set.status = 404;
@@ -291,6 +298,28 @@ app.patch(
       401: apiErrorResponseSchema,
       403: apiErrorResponseSchema,
       404: apiErrorResponseSchema,
+    },
+  },
+);
+
+app.get(
+  "/api/menu/:logicalId/history",
+  async ({ params, request }) => {
+    const user = await requireUser(request);
+    requireAnyRole(user, staffOrderRoles);
+    return { data: await store.getMenuVersionHistory(params.logicalId) };
+  },
+  {
+    detail: {
+      tags: ["menu"],
+      summary: "List menu item version history",
+      description:
+        "Return all versions of a logical menu item. Requires staff/chef/owner/admin.",
+    },
+    response: {
+      200: menuItemHistoryResponseSchema,
+      401: apiErrorResponseSchema,
+      403: apiErrorResponseSchema,
     },
   },
 );
@@ -835,6 +864,11 @@ app.post(
     if (!result.ok && result.code === "EMPTY_ORDER") {
       set.status = 400;
       return { error: "Empty order cannot be submitted" };
+    }
+
+    if (!result.ok && result.code === "OUTDATED_MENU_ITEM") {
+      set.status = 409;
+      return { error: "Cart contains outdated menu items" };
     }
 
     if (!result.ok) {

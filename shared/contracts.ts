@@ -6,11 +6,16 @@ import { z } from "zod";
 
 export const menuItemSchema = z.object({
   id: z.number().int().min(1),
+  logicalId: z.string().min(1).optional(),
+  version: z.number().int().min(1).optional(),
   name: z.string().min(1),
   price: z.number().min(0),
   category: z.string().min(1),
   description: z.string(),
   image_url: z.string().min(1),
+  isCurrentVersion: z.boolean().optional(),
+  supersedes: z.number().int().min(1).optional(),
+  changeReason: z.string().optional(),
 });
 
 export const roleSchema = z.enum(["customer", "staff", "chef", "owner", "admin"]);

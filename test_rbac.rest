@@ -30,6 +30,21 @@ Content-Type: application/json
   "image_url": "https://images.unsplash.com/photo-1555126634-323283e090fa?auto=format&fit=crop&w=800&q=80"
 }
 
+### V10.1 menu items include version metadata
+GET {{baseUrl}}/api/menu
+
+### V10.1 owner/admin updates menu by creating a new version
+PATCH {{baseUrl}}/api/menu/1
+Content-Type: application/json
+
+{
+  "price": 35,
+  "changeReason": "V10.1 versioning test: price update"
+}
+
+### V10.1 staff/chef/owner/admin can inspect menu version history
+GET {{baseUrl}}/api/menu/menu-1/history
+
 ### Chef/owner/admin updates kitchen status
 PATCH {{baseUrl}}/api/orders/1/status
 Content-Type: application/json

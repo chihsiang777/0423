@@ -12,6 +12,7 @@ import {
   ordersTable,
 } from "../../db/schema.ts";
 import type { Store } from "../Store.ts";
+import { menuRepository } from "./MenuRepository.ts";
 
 interface PgStoreOptions {
   dataFilePath?: string;
@@ -64,28 +65,7 @@ export class PgStore implements Store {
     description: string;
     image_url: string;
   }): Promise<MenuItem> {
-    const [inserted] = await db
-      .insert(menuItemsTable)
-      .values({
-        name: input.name,
-        price: input.price,
-        category: input.category,
-        description: input.description,
-        imageUrl: input.image_url,
-      })
-      .returning();
-
-    if (!inserted) throw new Error("Failed to insert menu item");
-
-    const created: MenuItem = {
-      id: inserted.id,
-      name: inserted.name,
-      price: inserted.price,
-      category: inserted.category,
-      description: inserted.description,
-      image_url: inserted.imageUrl,
-    };
-
+    const created = await menuRepository.createMenuItem(input);
     this.menu.push(created);
     return created;
   }
@@ -98,60 +78,31 @@ export class PgStore implements Store {
       category?: string;
       description?: string;
       image_url?: string;
+      changeReason?: string;
+      createdBy?: string;
     },
   ): Promise<MenuItem | null> {
-    const [updated] = await db
-      .update(menuItemsTable)
-      .set({
-        ...(patch.name !== undefined ? { name: patch.name } : {}),
-        ...(patch.price !== undefined ? { price: patch.price } : {}),
-        ...(patch.category !== undefined ? { category: patch.category } : {}),
-        ...(patch.description !== undefined
-          ? { description: patch.description }
-          : {}),
-        ...(patch.image_url !== undefined ? { imageUrl: patch.image_url } : {}),
-      })
-      .where(eq(menuItemsTable.id, menuId))
-      .returning();
-
-    if (!updated) return null;
-
-    const next: MenuItem = {
-      id: updated.id,
-      name: updated.name,
-      price: updated.price,
-      category: updated.category,
-      description: updated.description,
-      image_url: updated.imageUrl,
-    };
+    const next = await menuRepository.updateMenuItem(menuId, patch);
+    if (!next) return null;
 
     const idx = this.menu.findIndex((item) => item.id === menuId);
     if (idx !== -1) this.menu[idx] = next;
+    else this.menu.push(next);
 
     return next;
   }
 
   async deleteMenuItem(menuId: number): Promise<MenuItem | null> {
-    const [removed] = await db
-      .delete(menuItemsTable)
-      .where(eq(menuItemsTable.id, menuId))
-      .returning();
-
-    if (!removed) return null;
-
-    const removedItem: MenuItem = {
-      id: removed.id,
-      name: removed.name,
-      price: removed.price,
-      category: removed.category,
-      description: removed.description,
-      image_url: removed.imageUrl,
-    };
-
+    const removedItem = await menuRepository.deleteMenuItem(menuId);
+    if (!removedItem) return null;
     const idx = this.menu.findIndex((item) => item.id === menuId);
     if (idx !== -1) this.menu.splice(idx, 1);
 
     return removedItem;
+  }
+
+  async getMenuVersionHistory(logicalId: string): Promise<ReadonlyArray<MenuItem>> {
+    return await menuRepository.getMenuVersionHistory(logicalId);
   }
 
   // ── Orders ──────────────────────────────────────────────────
@@ -304,7 +255,8 @@ export class PgStore implements Store {
           | "ORDER_NOT_FOUND"
           | "ORDER_NOT_OWNED"
           | "ORDER_NOT_EDITABLE"
-          | "EMPTY_ORDER";
+          | "EMPTY_ORDER"
+          | "OUTDATED_MENU_ITEM";
       }
   > {
     const order = this.orders.find((o) => o.id === orderId);
@@ -314,6 +266,11 @@ export class PgStore implements Store {
     if (order.status !== "pending")
       return { ok: false, code: "ORDER_NOT_EDITABLE" };
     if (order.items.length === 0) return { ok: false, code: "EMPTY_ORDER" };
+
+    const validation = await menuRepository.validateMenuItemsAreCurrent(
+      order.items.map((orderItem) => orderItem.item.id),
+    );
+    if (!validation.valid) return { ok: false, code: "OUTDATED_MENU_ITEM" };
 
     const submittedAt = new Date().toISOString();
 
@@ -378,11 +335,15 @@ export class PgStore implements Store {
       await db.insert(menuItemsTable).values(
         menu.map((item) => ({
           id: item.id,
+          logicalId: `menu-${item.id}`,
+          version: 1,
           name: item.name,
           price: item.price,
           category: item.category,
           description: item.description,
           imageUrl: item.image_url,
+          isCurrentVersion: true,
+          changeReason: "Seed data",
         })),
       );
     }
@@ -402,6 +363,7 @@ export class PgStore implements Store {
     const menuRows = await db
       .select()
       .from(menuItemsTable)
+      .where(eq(menuItemsTable.isCurrentVersion, true))
       .orderBy(asc(menuItemsTable.id));
 
     const orderRows = await db
@@ -416,11 +378,16 @@ export class PgStore implements Store {
 
     this.menu = menuRows.map((row) => ({
       id: row.id,
+      logicalId: row.logicalId,
+      version: row.version,
       name: row.name,
       price: row.price,
       category: row.category,
       description: row.description,
       image_url: row.imageUrl,
+      isCurrentVersion: row.isCurrentVersion,
+      supersedes: row.supersedes ?? undefined,
+      changeReason: row.changeReason ?? undefined,
     }));
 
     const itemsByOrderId = new Map<number, OrderItem[]>();

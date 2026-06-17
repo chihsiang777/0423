@@ -63,6 +63,7 @@ export const updateMenuItemBodySchema = z.object({
   category: z.string().min(1).optional(),
   description: z.string().min(1).optional(),
   image_url: z.string().min(1).optional(),
+  changeReason: z.string().min(1).optional(),
 });
 
 /** DELETE /api/menu/:id */
@@ -137,6 +138,10 @@ export const menuListResponseSchema = z.object({
 
 export const menuItemResponseSchema = z.object({
   data: menuItemSchema,
+});
+
+export const menuItemHistoryResponseSchema = z.object({
+  data: z.array(menuItemSchema),
 });
 
 export const orderListResponseSchema = z.object({

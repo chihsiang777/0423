@@ -7,6 +7,7 @@ import type {
 } from "../../shared/contracts.ts";
 import { db } from "../../db/client.ts";
 import {
+  favoriteMenuItemsTable,
   menuItemsTable,
   orderItemsTable,
   ordersTable,
@@ -103,6 +104,44 @@ export class PgStore implements Store {
 
   async getMenuVersionHistory(logicalId: string): Promise<ReadonlyArray<MenuItem>> {
     return await menuRepository.getMenuVersionHistory(logicalId);
+  }
+
+  async getFavoriteMenuItemIdsByUserId(userId: string): Promise<number[]> {
+    const rows = await db
+      .select({ menuItemId: favoriteMenuItemsTable.menuItemId })
+      .from(favoriteMenuItemsTable)
+      .where(eq(favoriteMenuItemsTable.userId, userId))
+      .orderBy(asc(favoriteMenuItemsTable.createdAt));
+
+    return rows.map((row) => row.menuItemId);
+  }
+
+  async addFavoriteMenuItem(userId: string, menuItemId: number): Promise<number[]> {
+    const menuItem = this.menu.find((item) => item.id === menuItemId);
+    if (!menuItem) return await this.getFavoriteMenuItemIdsByUserId(userId);
+
+    await db
+      .insert(favoriteMenuItemsTable)
+      .values({ userId, menuItemId })
+      .onConflictDoNothing();
+
+    return await this.getFavoriteMenuItemIdsByUserId(userId);
+  }
+
+  async removeFavoriteMenuItem(
+    userId: string,
+    menuItemId: number,
+  ): Promise<number[]> {
+    await db
+      .delete(favoriteMenuItemsTable)
+      .where(
+        and(
+          eq(favoriteMenuItemsTable.userId, userId),
+          eq(favoriteMenuItemsTable.menuItemId, menuItemId),
+        ),
+      );
+
+    return await this.getFavoriteMenuItemIdsByUserId(userId);
   }
 
   // ── Orders ──────────────────────────────────────────────────

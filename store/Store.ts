@@ -43,6 +43,9 @@ export interface Store {
   ): Promise<MenuItem | null>;
   deleteMenuItem(menuId: number): Promise<MenuItem | null>;
   getMenuVersionHistory(logicalId: string): Promise<ReadonlyArray<MenuItem>>;
+  getFavoriteMenuItemIdsByUserId(userId: string): Promise<number[]>;
+  addFavoriteMenuItem(userId: string, menuItemId: number): Promise<number[]>;
+  removeFavoriteMenuItem(userId: string, menuItemId: number): Promise<number[]>;
 
   getOrders(): ReadonlyArray<Order>;
   getOrdersByUserId(userId: string): ReadonlyArray<Order>;

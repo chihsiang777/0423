@@ -81,6 +81,10 @@ export const roleRequestSchema = z.object({
   reviewNote: z.string().optional(),
 });
 
+export const favoriteListSchema = z.object({
+  menuItemIds: z.array(z.number().int().min(1)),
+});
+
 export const adminUserSchema = sessionUserSchema.extend({
   emailVerified: z.boolean().optional(),
   createdAt: z.string().optional(),
@@ -96,6 +100,7 @@ export type OrderItem = z.infer<typeof orderItemSchema>;
 export type Order = z.infer<typeof orderSchema>;
 export type RoleRequest = z.infer<typeof roleRequestSchema>;
 export type AdminUser = z.infer<typeof adminUserSchema>;
+export type FavoriteList = z.infer<typeof favoriteListSchema>;
 
 export interface ApiDataResponse<T> {
   data: T;

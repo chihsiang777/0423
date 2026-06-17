@@ -18,6 +18,7 @@ interface DataStore {
   users: StoredUser[];
   menu: MenuItem[];
   orders: Order[];
+  favorites: Array<{ userId: string; menuItemId: number; createdAt: string }>;
   userIdCounter: number;
   menuIdCounter: number;
   orderIdCounter: number;
@@ -133,6 +134,7 @@ export class JsonFileStore implements Store {
   private users: StoredUser[] = [];
   private menu: MenuItem[] = [];
   private orders: Order[] = [];
+  private favorites: Array<{ userId: string; menuItemId: number; createdAt: string }> = [];
   private userIdCounter = 0;
   private menuIdCounter = 0;
   private orderIdCounter = 0;
@@ -179,6 +181,20 @@ export class JsonFileStore implements Store {
           status: normalizeOrderStatus(order.status),
           submittedAt: order.status === "pending" ? undefined : order.submittedAt,
         })),
+        favorites: Array.isArray(parsed.favorites)
+          ? parsed.favorites
+              .filter((favorite) => {
+                return (
+                  typeof favorite?.userId === "string" &&
+                  typeof favorite?.menuItemId === "number"
+                );
+              })
+              .map((favorite) => ({
+                userId: favorite.userId,
+                menuItemId: favorite.menuItemId,
+                createdAt: favorite.createdAt ?? new Date().toISOString(),
+              }))
+          : [],
         userIdCounter: parsed.userIdCounter ?? 0,
         menuIdCounter: parsed.menuIdCounter ?? 0,
         orderIdCounter: parsed.orderIdCounter ?? 0,
@@ -253,6 +269,53 @@ export class JsonFileStore implements Store {
     await this.persist();
 
     return removedMenuItem ?? null;
+  }
+
+  async getMenuVersionHistory(logicalId: string): Promise<ReadonlyArray<MenuItem>> {
+    return this.menu.filter((item) => {
+      return item.logicalId === logicalId || `menu-${item.id}` === logicalId;
+    });
+  }
+
+  async getFavoriteMenuItemIdsByUserId(userId: string): Promise<number[]> {
+    return this.favorites
+      .filter((favorite) => favorite.userId === userId)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .map((favorite) => favorite.menuItemId);
+  }
+
+  async addFavoriteMenuItem(userId: string, menuItemId: number): Promise<number[]> {
+    const menuItem = this.menu.find((item) => item.id === menuItemId);
+    const existing = this.favorites.some((favorite) => {
+      return favorite.userId === userId && favorite.menuItemId === menuItemId;
+    });
+
+    if (menuItem && !existing) {
+      this.favorites.push({
+        userId,
+        menuItemId,
+        createdAt: new Date().toISOString(),
+      });
+      await this.persist();
+    }
+
+    return await this.getFavoriteMenuItemIdsByUserId(userId);
+  }
+
+  async removeFavoriteMenuItem(
+    userId: string,
+    menuItemId: number,
+  ): Promise<number[]> {
+    const nextFavorites = this.favorites.filter((favorite) => {
+      return !(favorite.userId === userId && favorite.menuItemId === menuItemId);
+    });
+
+    if (nextFavorites.length !== this.favorites.length) {
+      this.favorites = nextFavorites;
+      await this.persist();
+    }
+
+    return await this.getFavoriteMenuItemIdsByUserId(userId);
   }
 
   getOrders(): ReadonlyArray<Order> {
@@ -435,6 +498,7 @@ export class JsonFileStore implements Store {
       users: cloneDefaultUsers(),
       menu: cloneDefaultMenu(),
       orders: [],
+      favorites: [],
       userIdCounter: defaultUsers.length,
       menuIdCounter: defaultMenu.length,
       orderIdCounter: 0,
@@ -445,6 +509,7 @@ export class JsonFileStore implements Store {
     this.users = store.users;
     this.menu = store.menu;
     this.orders = store.orders;
+    this.favorites = store.favorites;
 
     const maxUserId = this.users.reduce((max, user) => {
       const asNumber = Number.parseInt(user.id, 10);
@@ -470,6 +535,7 @@ export class JsonFileStore implements Store {
       users: this.users,
       menu: this.menu,
       orders: this.orders,
+      favorites: this.favorites,
       userIdCounter: this.userIdCounter,
       menuIdCounter: this.menuIdCounter,
       orderIdCounter: this.orderIdCounter,

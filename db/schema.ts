@@ -69,6 +69,25 @@ export const roleRequestsTable = appSchema.table("role_requests", {
   reviewNote: text("review_note"),
 });
 
+export const favoriteMenuItemsTable = appSchema.table(
+  "favorite_menu_items",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    menuItemId: integer("menu_item_id")
+      .notNull()
+      .references(() => menuItemsTable.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    favoriteMenuItemUniqueIdx: uniqueIndex("favorite_menu_items_user_item_idx").on(
+      table.userId,
+      table.menuItemId,
+    ),
+  }),
+);
+
 export const orderItemsTable = appSchema.table(
   "order_items",
   {

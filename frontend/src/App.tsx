@@ -34,6 +34,11 @@ export default function App() {
   const [activeItemId, setActiveItemId] = useState<number | null>(null);
   const [actionError, setActionError] = useState("");
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [favoriteItemIds, setFavoriteItemIds] = useState<number[]>([]);
+  const [favoriteOnly, setFavoriteOnly] = useState(false);
+  const [favoriteUpdatingItemId, setFavoriteUpdatingItemId] = useState<
+    number | null
+  >(null);
   const [isClearingCart, setIsClearingCart] = useState(false);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [allOrders, setAllOrders] = useState<Order[]>([]);
@@ -123,8 +128,29 @@ export default function App() {
     }
   }
 
+  async function loadFavorites(): Promise<void> {
+    const response = await fetch(buildApiUrl("/api/favorites"), {
+      credentials: "include",
+    });
+
+    if (response.status === 401) {
+      setFavoriteItemIds([]);
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error(`Load favorites failed: HTTP ${response.status}`);
+    }
+
+    const payload =
+      (await response.json()) as ApiDataResponse<{ menuItemIds: number[] }>;
+    setFavoriteItemIds(
+      Array.isArray(payload?.data?.menuItemIds) ? payload.data.menuItemIds : [],
+    );
+  }
+
   async function refreshUserOrders(): Promise<void> {
-    await Promise.all([loadCurrentOrder(), loadOrderHistory()]);
+    await Promise.all([loadCurrentOrder(), loadOrderHistory(), loadFavorites()]);
   }
 
   useEffect(() => {
@@ -226,6 +252,8 @@ export default function App() {
       setRoleRequests([]);
       setAdminUsers([]);
       setIsCartOpen(false);
+      setFavoriteItemIds([]);
+      setFavoriteOnly(false);
       resetCartState();
       return;
     }
@@ -243,8 +271,13 @@ export default function App() {
     });
   }, [user?.id, userRoles.join(","), currentPath]);
 
+  const visibleItems = useMemo(() => {
+    if (!favoriteOnly) return items;
+    return items.filter((item) => favoriteItemIds.includes(item.id));
+  }, [favoriteItemIds, favoriteOnly, items]);
+
   const grouped = useMemo(() => {
-    const groupedItems = items.reduce(
+    const groupedItems = visibleItems.reduce(
       (acc, item) => {
         const category = item?.category || "未分類";
         if (!acc[category]) {
@@ -261,7 +294,7 @@ export default function App() {
     );
 
     return { groupedItems, categories };
-  }, [items]);
+  }, [visibleItems]);
 
   const cartItemCount = useMemo(
     () => Object.values(cartQtyByItemId).reduce((sum, qty) => sum + qty, 0),
@@ -619,6 +652,39 @@ export default function App() {
       console.error(cartError);
     } finally {
       setActiveItemId(null);
+    }
+  }
+
+  async function toggleFavorite(item: MenuItem): Promise<void> {
+    if (!user) {
+      setAuthError("請先登入才能收藏餐點。");
+      return;
+    }
+
+    const isFavorite = favoriteItemIds.includes(item.id);
+    setActionError("");
+    setFavoriteUpdatingItemId(item.id);
+
+    try {
+      const response = await fetch(buildApiUrl(`/api/favorites/${item.id}`), {
+        method: isFavorite ? "DELETE" : "POST",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Toggle favorite failed: HTTP ${response.status}`);
+      }
+
+      const payload =
+        (await response.json()) as ApiDataResponse<{ menuItemIds: number[] }>;
+      setFavoriteItemIds(
+        Array.isArray(payload?.data?.menuItemIds) ? payload.data.menuItemIds : [],
+      );
+    } catch (favoriteError) {
+      setActionError("收藏餐點更新失敗，請稍後再試。");
+      console.error(favoriteError);
+    } finally {
+      setFavoriteUpdatingItemId(null);
     }
   }
 
@@ -1434,6 +1500,24 @@ export default function App() {
           </section>
         ) : null}
 
+        {canAccessCurrentRoute && isCustomerRoute && user ? (
+          <section className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <button
+              className={`btn btn-sm ${favoriteOnly ? "btn-primary" : "btn-outline"}`}
+              onClick={() => {
+                setFavoriteOnly((current) => !current);
+              }}
+            >
+              {favoriteOnly
+                ? "顯示全部餐點"
+                : `只看收藏 (${favoriteItemIds.length})`}
+            </button>
+            {favoriteOnly && visibleItems.length === 0 ? (
+              <span className="text-sm opacity-70">目前還沒有收藏餐點</span>
+            ) : null}
+          </section>
+        ) : null}
+
         {canAccessCurrentRoute && isCustomerRoute && items.length === 0 ? (
           <div className="alert alert-info">
             <span>目前沒有菜單資料</span>
@@ -1445,7 +1529,9 @@ export default function App() {
                 {category}
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {(grouped.groupedItems[category] || []).map((item) => (
+                {(grouped.groupedItems[category] || []).map((item) => {
+                  const isFavorite = favoriteItemIds.includes(item.id);
+                  return (
                   <div
                     key={item.id}
                     className="card bg-base-100 shadow-md hover:shadow-lg transition-shadow"
@@ -1468,10 +1554,22 @@ export default function App() {
                       <p className="text-sm opacity-80 line-clamp-2 min-h-[2.75rem]">
                         {item.description}
                       </p>
-                      <div className="card-actions justify-between items-center">
+                      <div className="card-actions justify-between items-center gap-2">
                         <span className="text-xl font-bold text-success">
                           ${item.price}
                         </span>
+                        <div className="flex flex-wrap justify-end gap-2">
+                          {user ? (
+                            <button
+                              className={`btn btn-sm ${isFavorite ? "btn-warning" : "btn-outline"}`}
+                              onClick={() => {
+                                void toggleFavorite(item);
+                              }}
+                              disabled={favoriteUpdatingItemId === item.id}
+                            >
+                              {isFavorite ? "已收藏" : "收藏"}
+                            </button>
+                          ) : null}
                         <button
                           className="btn btn-sm btn-primary"
                           onClick={() => {
@@ -1486,7 +1584,9 @@ export default function App() {
                       </div>
                     </div>
                   </div>
-                ))}
+                  </div>
+                  );
+                })}
               </div>
             </div>
           ))

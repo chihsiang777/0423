@@ -11,6 +11,8 @@ import {
   createMenuItemBodySchema,
   createRoleRequestBodySchema,
   deleteMenuItemParamsSchema,
+  favoriteListResponseSchema,
+  favoriteMenuItemParamsSchema,
   getOrderByIdParamsSchema,
   healthResponseSchema,
   listRoleRequestsQuerySchema,
@@ -229,6 +231,79 @@ app.post("/api/sign-out", async ({ request }) => {
 });
 
 // 菜單路由
+app.get(
+  "/api/favorites",
+  async ({ request }) => {
+    const user = await requireUser(request);
+    return {
+      data: {
+        menuItemIds: await store.getFavoriteMenuItemIdsByUserId(user.id),
+      },
+    };
+  },
+  {
+    detail: {
+      tags: ["menu"],
+      summary: "List favorite menu item ids",
+      description: "Return menu item ids favorited by the current user.",
+    },
+    response: {
+      200: favoriteListResponseSchema,
+      401: apiErrorResponseSchema,
+    },
+  },
+);
+
+app.post(
+  "/api/favorites/:menuItemId",
+  async ({ params, request }) => {
+    const user = await requireUser(request);
+    const menuItemId = parseInt(params.menuItemId, 10);
+    return {
+      data: {
+        menuItemIds: await store.addFavoriteMenuItem(user.id, menuItemId),
+      },
+    };
+  },
+  {
+    params: favoriteMenuItemParamsSchema,
+    detail: {
+      tags: ["menu"],
+      summary: "Add a favorite menu item",
+      description: "Mark a menu item as favorite for the current user.",
+    },
+    response: {
+      200: favoriteListResponseSchema,
+      401: apiErrorResponseSchema,
+    },
+  },
+);
+
+app.delete(
+  "/api/favorites/:menuItemId",
+  async ({ params, request }) => {
+    const user = await requireUser(request);
+    const menuItemId = parseInt(params.menuItemId, 10);
+    return {
+      data: {
+        menuItemIds: await store.removeFavoriteMenuItem(user.id, menuItemId),
+      },
+    };
+  },
+  {
+    params: favoriteMenuItemParamsSchema,
+    detail: {
+      tags: ["menu"],
+      summary: "Remove a favorite menu item",
+      description: "Unmark a menu item as favorite for the current user.",
+    },
+    response: {
+      200: favoriteListResponseSchema,
+      401: apiErrorResponseSchema,
+    },
+  },
+);
+
 app.get("/api/menu", () => ({ data: [...store.getMenu()] }), {
   detail: {
     tags: ["menu"],

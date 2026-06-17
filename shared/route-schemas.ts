@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Order } from "./contracts.ts";
 import {
   adminUserSchema,
+  favoriteListSchema,
   menuItemSchema,
   orderSchema,
   orderStatusSchema,
@@ -130,6 +131,11 @@ export const setUserRolesBodySchema = z.object({
   roles: z.array(roleSchema).min(1),
 });
 
+/** POST/DELETE /api/favorites/:menuItemId */
+export const favoriteMenuItemParamsSchema = z.object({
+  menuItemId: z.string().regex(/^[0-9]+$/),
+});
+
 // ─── Response Schemas（API envelope 層）─────────────────────────────────
 
 export const menuListResponseSchema = z.object({
@@ -178,4 +184,8 @@ export const adminUserResponseSchema = z.object({
 
 export const adminUserListResponseSchema = z.object({
   data: z.array(adminUserSchema),
+});
+
+export const favoriteListResponseSchema = z.object({
+  data: favoriteListSchema,
 });

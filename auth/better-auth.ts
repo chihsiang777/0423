@@ -46,7 +46,8 @@ export const auth = betterAuth({
     schema,
   }),
   emailAndPassword: {
-    enabled: false, // ✅ 禁用 email/password 登入
+    enabled: true,
+    disableSignUp: true,
   },
   ...(isGoogleProviderConfigured
     ? {

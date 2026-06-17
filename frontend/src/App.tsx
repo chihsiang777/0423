@@ -21,6 +21,9 @@ export default function App() {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [authError, setAuthError] = useState("");
   const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
+  const [emailInput, setEmailInput] = useState("rbac.owner@example.test");
+  const [passwordInput, setPasswordInput] = useState("RBAC-owner-2026!");
+  const [isEmailSigningIn, setIsEmailSigningIn] = useState(false);
   const [items, setItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -524,6 +527,48 @@ export default function App() {
     } catch {
       setAuthError("Google 登入啟動失敗，請稍後再試。");
       setIsGoogleSigningIn(false);
+    }
+  }
+
+  async function handleEmailSignIn(): Promise<void> {
+    setAuthError("");
+    setIsEmailSigningIn(true);
+
+    try {
+      const response = await fetch(buildApiUrl("/api/auth/sign-in/email"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          email: emailInput.trim(),
+          password: passwordInput,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Email sign-in failed: HTTP ${response.status}`);
+      }
+
+      const meResponse = await fetch(buildApiUrl("/api/me"), {
+        credentials: "include",
+      });
+      if (!meResponse.ok) {
+        throw new Error(`Load session failed: HTTP ${meResponse.status}`);
+      }
+
+      const payload =
+        (await meResponse.json()) as ApiDataResponse<SessionUser> | null;
+      if (!payload?.data) {
+        throw new Error("Load session failed: missing user");
+      }
+
+      setUser(payload.data);
+      setPasswordInput("");
+    } catch (emailSignInError) {
+      setAuthError("帳密登入失敗，請確認 email 與密碼。");
+      console.error(emailSignInError);
+    } finally {
+      setIsEmailSigningIn(false);
     }
   }
 
@@ -1047,12 +1092,48 @@ export default function App() {
                   <span>{authError}</span>
                 </div>
               ) : null}
+              <div className="grid gap-3">
+                <input
+                  className="input input-bordered"
+                  type="email"
+                  value={emailInput}
+                  onChange={(event) => {
+                    setEmailInput(event.target.value);
+                  }}
+                  placeholder="admin email"
+                  autoComplete="username"
+                />
+                <input
+                  className="input input-bordered"
+                  type="password"
+                  value={passwordInput}
+                  onChange={(event) => {
+                    setPasswordInput(event.target.value);
+                  }}
+                  placeholder="admin password"
+                  autoComplete="current-password"
+                />
+                <button
+                  className="btn btn-secondary w-full"
+                  onClick={() => {
+                    void handleEmailSignIn();
+                  }}
+                  disabled={
+                    isEmailSigningIn ||
+                    emailInput.trim().length === 0 ||
+                    passwordInput.length === 0
+                  }
+                >
+                  {isEmailSigningIn ? "Signing in..." : "Admin login"}
+                </button>
+              </div>
+              <div className="divider">OR</div>
               <button
                 className="btn btn-primary w-full"
                 onClick={() => {
                   void handleGoogleSignIn();
                 }}
-                disabled={isGoogleSigningIn}
+                disabled={isGoogleSigningIn || isEmailSigningIn}
               >
                 {isGoogleSigningIn ? "導向 Google 中..." : "使用 Google 登入"}
               </button>

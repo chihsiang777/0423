@@ -1,6 +1,14 @@
 import { z } from "zod";
 import type { Order } from "./contracts.ts";
-import { menuItemSchema, orderSchema, sessionUserSchema } from "./contracts.ts";
+import {
+  adminUserSchema,
+  menuItemSchema,
+  orderSchema,
+  orderStatusSchema,
+  roleRequestSchema,
+  roleSchema,
+  sessionUserSchema,
+} from "./contracts.ts";
 import toTaipeiDateTime from "../util.ts";
 
 export type { Order };
@@ -62,21 +70,10 @@ export const deleteMenuItemParamsSchema = z.object({
   id: z.string().regex(/^[0-9]+$/),
 });
 
-/** GET /api/orders/current */
-export const getOrderCurrentQuerySchema = z.object({});
-
-/** GET /api/orders/history */
-export const getOrderHistoryQuerySchema = z.object({});
-
-/** POST /api/orders */
-export const createOrderBodySchema = z.object({});
-
 /** GET /api/orders/:id */
 export const getOrderByIdParamsSchema = z.object({
   id: z.string().regex(/^[0-9]+$/),
 });
-
-export const getOrderByIdQuerySchema = z.object({});
 
 /** PATCH /api/orders/:id */
 export const updateOrderParamsSchema = z.object({
@@ -88,18 +85,51 @@ export const updateOrderBodySchema = z.object({
   qty: z.number().min(0),
 });
 
+/** PATCH /api/orders/:id/status */
+export const updateOrderStatusParamsSchema = z.object({
+  id: z.string().regex(/^[0-9]+$/),
+});
+
+export const updateOrderStatusBodySchema = z.object({
+  status: orderStatusSchema.exclude(["pending"]),
+});
+
 /** POST /api/orders/:id/submit */
 export const submitOrderParamsSchema = z.object({
   id: z.string().regex(/^[0-9]+$/),
 });
 
-export const submitOrderBodySchema = z.object({});
+/** POST /api/users/me/role-request */
+export const createRoleRequestBodySchema = z.object({
+  requestedRole: z.enum(["staff", "chef"]),
+  reason: z.string().min(10),
+});
+
+/** GET /api/admin/role-requests */
+export const listRoleRequestsQuerySchema = z.object({
+  status: z.enum(["pending", "approved", "rejected", "all"]).optional(),
+});
+
+/** PATCH /api/admin/role-requests/:id */
+export const reviewRoleRequestParamsSchema = z.object({
+  id: z.string().regex(/^[0-9]+$/),
+});
+
+export const reviewRoleRequestBodySchema = z.object({
+  status: z.enum(["approved", "rejected"]),
+  reviewNote: z.string().optional(),
+});
+
+/** PATCH /api/admin/users/:userId/roles */
+export const setUserRolesParamsSchema = z.object({
+  userId: z.string().min(1),
+});
+
+export const setUserRolesBodySchema = z.object({
+  roles: z.array(roleSchema).min(1),
+});
 
 // ─── Response Schemas（API envelope 層）─────────────────────────────────
-
-export const loginResponseSchema = z.object({
-  data: sessionUserSchema,
-});
 
 export const menuListResponseSchema = z.object({
   data: z.array(menuItemSchema),
@@ -123,4 +153,24 @@ export const nullableOrderResponseEnvelopeSchema = z.object({
 
 export const healthResponseSchema = z.object({
   status: z.string(),
+});
+
+export const sessionUserResponseSchema = z.object({
+  data: sessionUserSchema,
+});
+
+export const roleRequestResponseSchema = z.object({
+  data: roleRequestSchema,
+});
+
+export const roleRequestListResponseSchema = z.object({
+  data: z.array(roleRequestSchema),
+});
+
+export const adminUserResponseSchema = z.object({
+  data: adminUserSchema,
+});
+
+export const adminUserListResponseSchema = z.object({
+  data: z.array(adminUserSchema),
 });

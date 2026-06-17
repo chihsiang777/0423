@@ -8,9 +8,16 @@ import {
 import { user } from "./auth-schema.ts";
 
 // PostgreSQL namespace 隔離
-// 透過 PG_SCHEMA 環境變數切換，預設 "public"
-// V9 使用 bf_v9（Better Auth 整合版本）
-const appSchema = pgSchema(process.env.PG_SCHEMA ?? "public");
+// 透過 PG_SCHEMA 環境變數切換，預設 "bf_v10"
+// V10 使用 bf_v10（RBAC 權限系統版本）
+// 注意：不能使用 "public" 作為 schema 名稱（Drizzle 限制）
+const schemaName = process.env.PG_SCHEMA || "bf_v10";
+if (schemaName === "public") {
+  throw new Error(
+    'PG_SCHEMA cannot be "public". Use a custom schema name or leave it unset to use the default "bf_v10".',
+  );
+}
+const appSchema = pgSchema(schemaName);
 
 // 對照 shared/contracts.ts：
 //   MenuItem { id, name, price, category, description, image_url }
@@ -38,6 +45,20 @@ export const ordersTable = appSchema.table("orders", {
   status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   submittedAt: timestamp("submitted_at", { withTimezone: true }),
+});
+
+export const roleRequestsTable = appSchema.table("role_requests", {
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  requestedRole: text("requested_role").notNull(),
+  reason: text("reason").notNull(),
+  status: text("status").notNull().default("pending"),
+  requestedAt: timestamp("requested_at", { withTimezone: true }).notNull(),
+  reviewedBy: text("reviewed_by").references(() => user.id),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  reviewNote: text("review_note"),
 });
 
 export const orderItemsTable = appSchema.table(

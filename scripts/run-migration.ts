@@ -7,9 +7,12 @@
  * 用法：bun scripts/run-migration.ts
  */
 
-import { Pool } from "pg";
-import { readFile } from "node:fs/promises";
+import { neonConfig, Pool } from "@neondatabase/serverless";
+import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import ws from "ws";
+
+neonConfig.webSocketConstructor = ws;
 
 const DATABASE_URL =
   process.env.DATABASE_URL_MIGRATION ?? process.env.DATABASE_URL;
@@ -36,12 +39,7 @@ interface Journal {
   entries: JournalEntry[];
 }
 
-const pool = new Pool({
-  connectionString: DATABASE_URL,
-  ssl: DATABASE_URL.includes("sslmode=disable")
-    ? false
-    : { rejectUnauthorized: false },
-});
+const pool = new Pool({ connectionString: DATABASE_URL });
 
 async function main() {
   const client = await pool.connect();

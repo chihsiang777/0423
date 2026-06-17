@@ -1,6 +1,8 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { eq } from "drizzle-orm";
 import { db } from "../db/client.ts";
+import { user as userTable } from "../db/auth-schema.ts";
 import * as schema from "../db/auth-schema.ts";
 import type { SessionUser } from "../shared/contracts.ts";
 import { toSessionUser } from "./user-mapper.ts";
@@ -32,8 +34,8 @@ const isGoogleProviderConfigured = Boolean(
 );
 
 // ─── Better Auth instance ─────────────────────────────────────────────────────
-// V9 第一階段：只啟用 email/password，Google OAuth 放第二階段。
-// auth tables（user / session / account / verification）存在 bf_v9 schema 下，
+// V9：只使用 Google OAuth 登入，不提供 email/password 方式。
+// auth tables（user / session / account / verification）存在 bf_v10 schema 下，
 // 與業務 tables（menu_items / orders / order_items）並存於同一 DB。
 export const auth = betterAuth({
   baseURL,
@@ -44,7 +46,7 @@ export const auth = betterAuth({
     schema,
   }),
   emailAndPassword: {
-    enabled: false,
+    enabled: false, // ✅ 禁用 email/password 登入
   },
   ...(isGoogleProviderConfigured
     ? {
@@ -68,6 +70,12 @@ export async function getCurrentUser(
   const session = await auth.api.getSession({ headers: request.headers });
   if (!session?.user) return null;
 
+  const [dbUser] = await db
+    .select()
+    .from(userTable)
+    .where(eq(userTable.id, session.user.id))
+    .limit(1);
+
   // DbUser → SessionUser 轉換（延續 contracts.ts 分層原則）
-  return toSessionUser(session.user);
+  return toSessionUser(dbUser ?? session.user);
 }
